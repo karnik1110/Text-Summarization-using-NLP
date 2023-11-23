@@ -11,7 +11,7 @@ import configparser
 import streamlit as st
 import random
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, TextClassificationPipeline
-from decouple import config
+from decouple import AutoConfig()
 import spacy
 
 
@@ -24,6 +24,7 @@ nlp= spacy.load("en_core_web_sm")
 stopwords = list(STOP_WORDS)
 punctuation = punctuation + "\n"
 
+config = AutoConfig()
 news_api_key = config('NEWS_API')
 
 
