@@ -11,7 +11,7 @@ import configparser
 import streamlit as st
 import random
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, TextClassificationPipeline
-from decouple import AutoConfig()
+from decouple import AutoConfig
 import spacy
 
 
