@@ -10,15 +10,21 @@ from bs4 import BeautifulSoup
 import configparser
 import streamlit as st
 import random
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, TextClassificationPipeline
+from decouple import config
+import spacy
 
-nlp= en_core_web_sm.load()
-#nlp= spacy.load("en_core_web_sm")
+
+tokenizer = AutoTokenizer.from_pretrained("mrm8488/t5-base-finetuned-summarize-news")
+model = AutoModelForSeq2SeqLM.from_pretrained("mrm8488/t5-base-finetuned-summarize-news")
+
+
+# nlp= en_core_web_sm.load()
+nlp= spacy.load("en_core_web_sm")
 stopwords = list(STOP_WORDS)
 punctuation = punctuation + "\n"
 
-config = configparser.ConfigParser()
-config.read("config.ini")
-news_api_key = config["API"]["news_api"]
+news_api_key = config('NEWS_API')
 
 
 
@@ -129,6 +135,30 @@ def fetch_news(link_list):
         news.clear()
     
     return news_list
+
+
+def summarize_llm(text):
+    max_length = 150
+    input_ids = tokenizer.encode(text, return_tensors="pt", add_special_tokens=True)
+
+    generated_ids = model.generate(input_ids=input_ids, num_beams=2, max_length=max_length,  repetition_penalty=2.5, length_penalty=1.0, early_stopping=True)
+
+    preds = [tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=True) for g in generated_ids]
+
+    return preds[0]    
+
+def categorize_news(text):
+    # Load model directly
+
+    tokenizer = AutoTokenizer.from_pretrained("wesleyacheng/news-topic-classification-with-bert")
+    model = AutoModelForSequenceClassification.from_pretrained("wesleyacheng/news-topic-classification-with-bert")
+    pipe = TextClassificationPipeline(model=model, tokenizer=tokenizer)
+    prediction = pipe(text, return_all_scores=True)
+    flat_data = [item for sublist in prediction for item in sublist]
+
+    # Find the maximum key-value pair based on the "score"
+    max_pair = max(flat_data, key=lambda x: x['score'])
+    return max_pair
 
 
 

@@ -1,5 +1,5 @@
 import streamlit as st
-from helper import get_summary, spacy_rander, fetch_news, fetch_news_links
+from helper import spacy_rander, fetch_news, fetch_news_links, summarize_llm, categorize_news, get_summary
 
 
 st.set_page_config(
@@ -32,14 +32,15 @@ if choice == "Custom Text Summarization":
         text = st.text_area(label="Enter Your Text or story", height=350, placeholder="Enter Your Text or story or your article iit can be of any length")
         
     if st.button("Get Summary and Headline"):
-        summary = get_summary(text)
+        summary = summarize_llm(text)
+        categories = categorize_news(text)
 
         try:
             with col2:
                 st.write("Text Summary (Summary length: {})".format(len(summary)))
                 st.code(summary)
-                st.write("Text Headline")
-                st.code("Feature Comming Soon")
+                st.write("News Category")
+                st.code(f'Category: {categories.get("label")} | Probability: {categories.get("score")}')
 
             spacy_rander(summary)
 
