@@ -18,9 +18,6 @@ import spacy
 tokenizer = AutoTokenizer.from_pretrained("mrm8488/t5-base-finetuned-summarize-news")
 model = AutoModelForSeq2SeqLM.from_pretrained("mrm8488/t5-base-finetuned-summarize-news")
 
-# he,,o
-
-# nlp= en_core_web_sm.load()
 nlp= spacy.load("en_core_web_sm")
 stopwords = list(STOP_WORDS)
 punctuation = punctuation + "\n"
