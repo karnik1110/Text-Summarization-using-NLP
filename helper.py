@@ -13,10 +13,9 @@ import random
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, TextClassificationPipeline
 from decouple import AutoConfig
 import spacy
-
-
-tokenizer = AutoTokenizer.from_pretrained("mrm8488/t5-base-finetuned-summarize-news")
-model = AutoModelForSeq2SeqLM.from_pretrained("mrm8488/t5-base-finetuned-summarize-news")
+import streamlit as st
+import requests
+from newsplease import NewsPlease
 
 nlp= spacy.load("en_core_web_sm")
 stopwords = list(STOP_WORDS)
@@ -24,8 +23,6 @@ punctuation = punctuation + "\n"
 
 config = AutoConfig()
 news_api_key = config('NEWS_API')
-
-
 
 def spacy_rander(summary, text=None):
 
@@ -37,8 +34,6 @@ def spacy_rander(summary, text=None):
         rend = spacy_streamlit.visualize_ner(summ, labels=nlp.get_pipe("ner").labels, title="Summary Visualization", show_table=False, key=random.randint(0, 100))
     
     return rend
-
-
 
 def word_frequency(doc):
     word_frequencies = {}
@@ -53,9 +48,6 @@ def word_frequency(doc):
     
     return word_frequencies
 
-
-
-
 def sentence_score(sentence_tokens, word_frequencies):
     sentence_score = {}
 
@@ -69,8 +61,7 @@ def sentence_score(sentence_tokens, word_frequencies):
     
     return sentence_score
 
-
-@st.cache(allow_output_mutation=False)
+@st.cache_data
 def fetch_news_links(query):
     link_list = []
     title_list = []
@@ -106,9 +97,7 @@ def fetch_news_links(query):
 
     return link_list, title_list, thumbnail_list
 
-
-
-@st.cache(allow_output_mutation=False)
+@st.cache_data
 def fetch_news(link_list):
 
     news = []
@@ -135,20 +124,46 @@ def fetch_news(link_list):
     
     return news_list
 
-
 def summarize_llm(text):
-    max_length = 150
-    input_ids = tokenizer.encode(text, return_tensors="pt", add_special_tokens=True)
+    # tokenizer = AutoTokenizer.from_pretrained("mrm8488/t5-base-finetuned-summarize-news")
+    # model = AutoModelForSeq2SeqLM.from_pretrained("mrm8488/t5-base-finetuned-summarize-news")
+    model_nme = ""
 
-    generated_ids = model.generate(input_ids=input_ids, num_beams=2, max_length=max_length,  repetition_penalty=2.5, length_penalty=1.0, early_stopping=True)
+    # Specify the input text for inference
+    input_text = "Your input text goes here."
 
-    preds = [tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=True) for g in generated_ids]
+    # Define the API endpoint for the Hugging Face model
+    api_endpoint = f"https://api-inference.huggingface.co/models/{model_name}"
 
-    return preds[0]    
+    # Prepare the request payload
+    payload = {
+        "inputs": input_text
+    }
+
+    # Make a POST request to the Hugging Face API
+    response = requests.post(api_endpoint, json=payload)
+
+    # Check if the request was successful (status code 200)
+    if response.status_code == 200:
+        # Extract the model's output from the response
+        output = response.json()[0]["generated_text"]
+
+        # Process or use the model's output as needed
+        return output
+    else:
+        # Handle errors if the request was not successful
+        print("Error:", response.status_code, response.text)
+    # max_length = 150
+    # input_ids = tokenizer.encode(text, return_tensors="pt", add_special_tokens=True)
+
+    # generated_ids = model.generate(input_ids=input_ids, num_beams=2, max_length=max_length,  repetition_penalty=2.5, length_penalty=1.0, early_stopping=True)
+
+    # preds = [tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=True) for g in generated_ids]
+
+    # return preds[0]    
 
 def categorize_news(text):
     # Load model directly
-
     tokenizer = AutoTokenizer.from_pretrained("wesleyacheng/news-topic-classification-with-bert")
     model = AutoModelForSequenceClassification.from_pretrained("wesleyacheng/news-topic-classification-with-bert")
     pipe = TextClassificationPipeline(model=model, tokenizer=tokenizer)
@@ -159,11 +174,8 @@ def categorize_news(text):
     max_pair = max(flat_data, key=lambda x: x['score'])
     return max_pair
 
-
-
-
 def get_summary(text):
-    
+    print(len(text))
     doc = nlp(text)
 
     word_frequencies = word_frequency(doc)
@@ -173,14 +185,40 @@ def get_summary(text):
     sentence_tokens = [sent for sent in doc.sents]
     sentence_scores = sentence_score(sentence_tokens, word_frequencies)
 
-    
     select_length = int(len(sentence_tokens)*0.10)
-    summary  = nlargest(select_length, sentence_scores, key=sentence_scores.get)
-    summary = [word.text  for word in summary]
-    summary = " ".join(summary)
+    # select_length = select_length if select_length >0 else len(sentence_tokens)
+    if select_length > 0:
+        summary  = nlargest(select_length, sentence_scores, key=sentence_scores.get)
+        summary = [word.text  for word in summary]
+        summary = " ".join(summary)
+        return summary  
+    else:
+        return None
 
-    return summary
+    if response_json:
+        # Extract articles and filter by minimum character limit
+        articles = [hit["_source"]["article"] for hit in response_json["hits"]["hits"] if len(hit["_source"]["article"]) >= min_char_limit]
 
+        # Display total number of articles
+        st.header(f"Found {len(articles)} Articles (with minimum {min_char_limit} characters)")
+
+        # Display articles in a single column
+        st.title("Articles")
+        col1, col2 = st.columns(2)
+        for i, art in enumerate(articles):
+            if i % 2:
+                col2.markdown(f"**Article {i+1}:**\n{art}")
+            else:
+                col1.markdown(f"**Article {i+1}:**\n{art}")
+
+# @st.cache_data
+def fetch_text(link):
+    try:
+        link = NewsPlease.from_url(link)
+        return link.maintext
+    except Exception as e:
+        st.error(f"Error fetching news: {e}")
+        return ""
 
 
 

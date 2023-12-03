@@ -1,57 +1,77 @@
 import streamlit as st
-from helper import spacy_rander, fetch_news, fetch_news_links, summarize_llm, categorize_news, get_summary
-
+from helper import spacy_rander, fetch_news, fetch_news_links, summarize_llm, categorize_news, get_summary, fetch_text
+import newspaper
+import json
+import requests
 
 st.set_page_config(
      page_title="Data Analysis Web App",
      page_icon="🧊",
      layout="wide",
      initial_sidebar_state="expanded",
-     menu_items={
-         'Get Help': 'https://github.com/everydaycodings/Text-Summarization-using-NLP',
-         'Report a bug': "https://github.com/everydaycodings/Text-Summarization-using-NLP/issues/new",
-         'About': "# This is a header. This is an *extremely* cool app!"
-     }
 )
 
 
 st.sidebar.title("Text Summarization Web App")
 
-option = ["News Summary and Headlines", "Custom Text Summarization"]
-choice = st.sidebar.selectbox("Select of your choice", options=option)
+option = ["News Summary and Headlines", "Custom Text Summarization", "Find News by Category"]
+choice = st.sidebar.selectbox("Select your choice", options=option, format_func=lambda x: x)
 
 
 if choice == "Custom Text Summarization":
-    st.sidebar.markdown("Copy Sample Article if you want to test the web app. [[article source](https://edition.cnn.com/2022/02/14/us/new-mexico-albuquerque-stabbings/index.html)]")
-    st.sidebar.code(open("presentation/sample.txt","r").read())
     st.title("Welcome to {}".format(choice))
 
-    col1, col2 = st.columns(2)
+    input_option = st.radio("Choose input option:", ["Text", "Link"])
+    text = st.text_area(label="Enter Your Article Text or Link", height=350)
 
-    with col1:
-        text = st.text_area(label="Enter Your Text or story", height=350, placeholder="Enter Your Text or story or your article iit can be of any length")
+    if st.button("Get Summary and Category") :
+        if input_option == "Text":
+            # Summary and category processing
+            summary = get_summary(text)
+            categories = categorize_news(summary)
+        elif input_option == "Link":
+            if text:
+                try:
+                    text = fetch_text(text)
+                    #text = text[:7000]
+                    st.success("Text fetched successfully!")
+                    st.code(text)
+                except Exception as e:
+                    st.error(f"Error fetching text: {str(e)}")
+                    st.stop()
+                try:
+                    summary = get_summary(text)
+                    categories = categorize_news(summary)
+                except Exception as e:
+                    st.error(f"Error Summarizing text: {str(e)}")
+                    print(e)
+                    raise e
+                    st.stop()
+            else:
+                st.warning("Article too short to generate a summary. Please enter a longer article.")
+                st.stop()            
+        with st.container():
+            if summary:
+                st.subheader("Text Summary (Summary length: {})".format(len(summary)))
         
-    if st.button("Get Summary and Headline"):
-        summary = summarize_llm(text)
-        categories = categorize_news(text)
+        # Display summary in a box with background
+                summary_html = f'<div style="background-color:#f0f0f0; padding:10px; border-radius:5px;">{summary}</div>'
+                st.markdown(summary_html, unsafe_allow_html=True)
+        
+                st.subheader("News Category")
+                st.code(f'Category: {categories.get("label")} | Probability: {round(categories.get("score")*100,2)}%')
 
-        try:
-            with col2:
-                st.write("Text Summary (Summary length: {})".format(len(summary)))
-                st.code(summary)
-                st.write("News Category")
-                st.code(f'Category: {categories.get("label")} | Probability: {categories.get("score")}')
+        # Rendering using Spacy
+                spacy_rander(summary)
 
-            spacy_rander(summary)
+        # Original Article Analysis
+                spacy_rander(text, text="Yes")
+            else:
+                st.warning("Article too short to generate a summary. Please enter a longer article.")
 
-            #with st.expander("Get Original Article Analysis"):
-            spacy_rander(text, text="Yes")
-            
-        except NameError:
-            pass
 
 if choice == "News Summary and Headlines":
-    st.title("BBC News Summary")
+    st.title("Welcome to News Summary and Headlines")
 
     search_query = st.text_input("", placeholder="Enter the topic you want to search")
     st.write(" ")
@@ -84,3 +104,64 @@ if choice == "News Summary and Headlines":
     
     else:
         st.info("No Result found for {} Please try some popular Keywords".format(search_query))
+#Second format with slider
+#     with st.form("news_category"):
+#         arc_map = {"Sports": "sports", "Business": "business", "World": 'world', "Sci/Tech": 'science_and_technology'}
+#         st.header("Choose News Category and Number of Articles")
+#         news_category = st.selectbox("Select news category", options=["Sports", "Business", 'World', "Sci/Tech"])
+#         number = st.slider("Number of news articles to fetch", min_value=1, max_value=10, value=5)
+#         submitted = st.form_submit_button("Show News")
+#         if submitted:
+#             headers = {
+#         'Authorization': 'ApiKey TjA5ckdJd0JKLUQ3RUJkdXdwY2I6Qk9xR2JTUWlTSGVQaUdGbXoxWXRjUQ==',
+#         'Content-Type': 'application/json',
+#     }
+
+#             response = requests.get(
+#                 f'https://e8206b505dc648f78d24b894fef165b1.us-central1.gcp.cloud.es.io:443/search-news-article-data-298b/_search?q=category:{arc_map[news_category]}&from=0&size={number}&_source=article',
+#                 headers=headers,
+#             )
+
+#             response_json = response.json()
+if choice == "Find News by Category":
+
+    response_json = None
+    col1, col2 = st.columns(2)
+    with col1.form("news_category"):
+        arc_map = {"Sports": "sports", "Business": "business", "World": 'world', "Sci/Tech": 'science_and_technology'}
+        st.header("Welcome to Find News by Category")
+        news_category = st.selectbox("Select news category", options=["Sports", "Business", 'World', "Sci/Tech"])
+        submitted = st.form_submit_button("Show News")
+        if submitted:
+            headers = {
+                'Authorization': 'ApiKey TjA5ckdJd0JKLUQ3RUJkdXdwY2I6Qk9xR2JTUWlTSGVQaUdGbXoxWXRjUQ==',
+                'Content-Type': 'application/json',
+            }
+
+            response = requests.get(
+                f'https://e8206b505dc648f78d24b894fef165b1.us-central1.gcp.cloud.es.io:443/search-news-article-data-298b/_search?q=category:{arc_map[news_category]}&from=0&size=1000&_source=article',
+                headers=headers,
+            )
+
+            response_json = response.json()
+
+    # Load JSON response
+    # response_json = json.loads(response_data)
+
+    if response_json:
+        # Extract articles
+        if response_json:
+        # Extract articles and filter by minimum character limit
+            articles = [hit["_source"]["article"] for hit in response_json["hits"]["hits"] if len(hit["_source"]["article"]) >= 0]
+
+            # Display total number of articles
+            st.header(f"Found {len(articles)} Articles")
+
+            # Use a text box with columns to display articles
+            col1, col2 = st.columns(2)
+            for i, art in enumerate(articles):
+                if i % 2:
+                    col2.markdown(f'<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; margin-bottom:10px;"><strong>Article {i+1}:</strong><br>{art}</div>', unsafe_allow_html=True)
+                else:
+                    col1.markdown(f'<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; margin-bottom:10px;"><strong>Article {i+1}:</strong><br>{art}</div>', unsafe_allow_html=True)
+
