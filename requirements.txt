@@ -3,10 +3,13 @@ configparser
 bs4
 requests
 spacy_streamlit
-spacy
+# spacy
 en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-2.2.0/en_core_web_sm-2.2.0.tar.gz
 torch
 python-decouple
 transformers
 sentencepiece
 news-please
+spacy==3.3.1
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.3.0/en_core_web_sm-3.3.0-py3-none-any.whl
+
