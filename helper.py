@@ -175,7 +175,6 @@ def categorize_news(text):
     return max_pair
 
 def get_summary(text):
-    print(len(text))
     doc = nlp(text)
 
     word_frequencies = word_frequency(doc)
@@ -194,22 +193,6 @@ def get_summary(text):
         return summary  
     else:
         return None
-
-    if response_json:
-        # Extract articles and filter by minimum character limit
-        articles = [hit["_source"]["article"] for hit in response_json["hits"]["hits"] if len(hit["_source"]["article"]) >= min_char_limit]
-
-        # Display total number of articles
-        st.header(f"Found {len(articles)} Articles (with minimum {min_char_limit} characters)")
-
-        # Display articles in a single column
-        st.title("Articles")
-        col1, col2 = st.columns(2)
-        for i, art in enumerate(articles):
-            if i % 2:
-                col2.markdown(f"**Article {i+1}:**\n{art}")
-            else:
-                col1.markdown(f"**Article {i+1}:**\n{art}")
 
 # @st.cache_data
 def fetch_text(link):

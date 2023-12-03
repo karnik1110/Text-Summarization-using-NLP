@@ -3,6 +3,9 @@ from helper import spacy_rander, fetch_news, fetch_news_links, summarize_llm, ca
 import newspaper
 import json
 import requests
+# import subprocess
+
+# subprocess.run(["python3", "scipy", "version"])
 
 st.set_page_config(
      page_title="Data Analysis Web App",
@@ -26,26 +29,34 @@ if choice == "Custom Text Summarization":
 
     if st.button("Get Summary and Category") :
         if input_option == "Text":
-            # Summary and category processing
-            summary = get_summary(text)
-            categories = categorize_news(summary)
+            if text:
+                try:
+                    # Summary and category processing
+                    summary = get_summary(text)
+                    categories = categorize_news(summary)
+                except Exception as e:
+                    st.error(f"Error Processing Article")
+                    st.stop()
+            else:
+                st.warning("Article too short to generate a summary. Please enter a longer article.")
+                st.stop() 
         elif input_option == "Link":
             if text:
                 try:
                     text = fetch_text(text)
-                    #text = text[:7000]
                     st.success("Text fetched successfully!")
-                    st.code(text)
                 except Exception as e:
                     st.error(f"Error fetching text: {str(e)}")
                     st.stop()
                 try:
-                    summary = get_summary(text)
-                    categories = categorize_news(summary)
+                    if text:
+                        summary = get_summary(text)
+                        categories = categorize_news(summary)
+                    else:
+                        st.error(f"Error Processing Article")
                 except Exception as e:
-                    st.error(f"Error Summarizing text: {str(e)}")
+                    st.error(f"Error Processing Article")
                     print(e)
-                    raise e
                     st.stop()
             else:
                 st.warning("Article too short to generate a summary. Please enter a longer article.")
@@ -152,7 +163,7 @@ if choice == "Find News by Category":
         # Extract articles
         if response_json:
         # Extract articles and filter by minimum character limit
-            articles = [hit["_source"]["article"] for hit in response_json["hits"]["hits"] if len(hit["_source"]["article"]) >= 0]
+            articles = [hit["_source"]["article"] for hit in response_json["hits"]["hits"] if len(hit["_source"]["article"]) >= 300]
 
             # Display total number of articles
             st.header(f"Found {len(articles)} Articles")
